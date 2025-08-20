@@ -1,49 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import "./App.css";
+import AppShell from "./AppShell";
+import Dashboard from "./pages/Dashboard";
+import Attendance from "./pages/Attendance";
+import Classes from "./pages/Classes";
+import Users from "./pages/Users";
+import Reports from "./pages/Reports";
+import Login from "./pages/Login";
+import { getSupabaseClient } from "./lib/supabaseClient";
 
 // PUBLIC_INTERFACE
 function App() {
-  const [theme, setTheme] = useState('light');
-
-  // Effect to apply theme to document element
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // PUBLIC_INTERFACE
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
-
+  /** Main application component with routes and auth guard. */
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/reports" element={<Reports />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
+}
+
+function RequireAuth() {
+  /** Simple auth guard that redirects to /login if no session. */
+  const [checked, setChecked] = React.useState(false);
+  const [authed, setAuthed] = React.useState(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setAuthed(Boolean(data?.session));
+        setChecked(true);
+      } catch {
+        if (!mounted) return;
+        setAuthed(false);
+        setChecked(true);
+      }
+    })();
+    return () => (mounted = false);
+  }, []);
+
+  if (!checked) return <div className="card">Checking session…</div>;
+  if (!authed) return <Navigate to="/login" replace />;
+  return <React.Fragment><Routes><Route path="*" element={<AppShell />} /></Routes></React.Fragment>;
 }
 
 export default App;
