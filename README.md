@@ -1,1 +1,3 @@
-# student-attendance-tracker-8813
+# Project Repository
+
+This is the initial README file for the project.
